@@ -10,18 +10,18 @@ processed form of the [SBL Greek New Testament](data/sblgnt.txt).
 ## Requirements
 
 - Python 3.11 or later
-- [Poetry](https://python-poetry.org/)
+- [uv](https://docs.astral.sh/uv/)
 
 ## Install
 
 Clone the repository and install its locked dependencies:
 
 ```bash
-poetry install
+uv sync
 ```
 
-To work without Poetry, install the project dependencies listed in
-[`pyproject.toml`](pyproject.toml) in a Python 3.11+ virtual environment.
+`uv sync` creates a Python 3.11+ virtual environment in `.venv`, installs the
+project and development dependencies, and creates or updates `uv.lock`.
 
 ## Quick start
 
@@ -78,7 +78,7 @@ normalized character stream, one verse per line, suitable for training.
 Regenerate the processed file with:
 
 ```bash
-poetry run python script/sblgnt_to_uc.py < data/sblgnt.txt > data/sblgnt_processed.txt
+uv run python script/sblgnt_to_uc.py < data/sblgnt.txt > data/sblgnt_processed.txt
 ```
 
 Other supplied scripts:
@@ -93,7 +93,7 @@ Other supplied scripts:
 For example, to produce bigram counts from the processed corpus:
 
 ```bash
-poetry run python script/letter_count.py 2 < data/sblgnt_processed.txt > 2grams.tsv
+uv run python script/letter_count.py 2 < data/sblgnt_processed.txt > 2grams.tsv
 ```
 
 ## Development
@@ -101,13 +101,13 @@ poetry run python script/letter_count.py 2 < data/sblgnt_processed.txt > 2grams.
 Run the test suite with:
 
 ```bash
-poetry run pytest
+uv run pytest
 ```
 
 Format and lint using the included development dependencies:
 
 ```bash
-poetry run black lacuna script tests
-poetry run isort lacuna script tests
-poetry run flake8 lacuna script tests
+uv run black lacuna script tests
+uv run isort lacuna script tests
+uv run flake8 lacuna script tests
 ```
