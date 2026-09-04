@@ -1,182 +1,113 @@
 # Lacuna
 
-Just saving code here temporarily.
+Lacuna is a character-level n-gram language model for restoring missing
+characters in text. Train it on a corpus, mark each one-character gap with
+`?`, and it ranks likely completions with beam search.
+
+The repository also includes utilities for preparing Greek text, including a
+processed form of the [SBL Greek New Testament](data/sblgnt.txt).
+
+## Requirements
+
+- Python 3.11 or later
+- [Poetry](https://python-poetry.org/)
+
+## Install
+
+Clone the repository and install its locked dependencies:
+
+```bash
+poetry install
+```
+
+To work without Poetry, install the project dependencies listed in
+[`pyproject.toml`](pyproject.toml) in a Python 3.11+ virtual environment.
+
+## Quick start
+
+Train a model on an iterable of strings, then use `?` for each character to
+restore. The model works at the character level; spaces and punctuation are
+characters too unless they have been removed during corpus preparation.
 
 ```python
-import math
-from collections import Counter, namedtuple
-from itertools import islice
+from lacuna.lacuna import Lacuna
 
-# Set up a named tuple for sequence, log_probability
-Result = namedtuple("Result", ["sequence", "log_probability"])
+lacuna = Lacuna(3)  # trigram model
+lacuna.train(["banana", "bandana"])
 
+for result in lacuna.fill("ba?a", beam_width=10, top_k=3):
+    print(result.prefix, result.score)
+```
 
-def log_prob(p):
-    return math.log(p)
+Each result is a `LacunaResult(prefix, item, suffixes, score)`. `prefix` is
+the completed text and `score` is the model's accumulated ranking score.
+Higher scores are ranked first.
 
+For a corpus stored one example per line:
 
-def suffixes(s, k=1):
-    # return all suffixes of string of length k, k-1, k-2, ... 1
-    # return in that order (of longest to shortest)
-    for i in range(min(len(s), k), 0, -1):
-        yield s[-i:]
+```python
+from lacuna.lacuna import Lacuna
 
+lacuna = Lacuna(4)
+lacuna.train_from_file("data/sblgnt_processed.txt")
 
-def ngrams(s, k=1):
-    for i in range(len(s) - k + 1):
-        yield s[i : i + k]
+for result in lacuna.fill("λογ?ς", top_k=5):
+    print(result.prefix, result.score)
+```
 
+## How masking works
 
-def sliding_window(s, k=1):
-    for i in range(len(s) - k + 1):
-        yield s[i : i + k]
+- `?` is the default mask and represents exactly one missing character.
+- Multiple masks represent multiple gaps, e.g. `"λογ??"` restores two
+  characters.
+- Change the mask when constructing the model: `Lacuna(4, mask="_")`.
+- `beam_width` controls how many partial candidates are retained while filling
+  multi-character gaps; `top_k` controls how many final candidates are
+  returned.
 
+The model uses NLTK's interpolated Kneser–Ney language model. The order passed
+to `Lacuna(n)` is the largest character n-gram it considers. Text is padded
+with begin/end markers by default so the model can learn start and end context.
 
-class TransitionMatrixWithBackoff:
-    def __init__(self, k=1, default_probability=1e-5, BOS="␂", EOS="␃"):
-        self.BOS = BOS
-        self.EOS = EOS
-        self.k = k
-        self.default_probability = default_probability
-        self.counters = {}
-        self.compiled = False
-        for i in range(k):
-            self.counters[i] = Counter()
-        self.transitions = {}
-        for i in range(k):
-            self.transitions[i] = {}
+## Corpus preparation
 
-    def add(self, sequence):
-        # ok, we want to add the sequence for example abcdef to the transition matrix with for example k=4
-        # then we want to add the following ngrams:
-        # onegram: ␂, a, b, c, d, e, f, ␃
-        # bigram: ␂a, ab, bc, cd, de, ef, f␃
-        # trigram: ␂ab, abc, bcd, cde, def, ef␃
-        # fourgram: ␂abc, abcd, bcde, cdef, def␃
-        self.compiled = False
-        for i in range(self.k):
-            extended_sequence = sequence  # self.BOS + sequence + self.EOS
-            for ngram in ngrams(extended_sequence, i + 1):
-                # print("Adding [", ngram, "]")
-                self.counters[i][ngram] += 1
+`data/sblgnt.txt` contains the source text with book/chapter/verse prefixes,
+diacritics, punctuation, and spaces. `data/sblgnt_processed.txt` is its
+normalized character stream, one verse per line, suitable for training.
 
-    def compile(self):
-        for i in range(self.k):
-            s = sum(self.counters[i].values())
-            self.transitions[i] = {
-                suffix: count / s for suffix, count in self.counters[i].items()
-            }
+Regenerate the processed file with:
 
-    def __getitem__(self, sequence):
-        # print("Looking for [", sequence, "]")
-        if not self.compiled:
-            self.compile()
-            self.compiled = True
-        for suffix in suffixes(sequence, self.k):
-            # print("Looking for suffix [", suffix, "] with k=", self.k)
-            if suffix in self.transitions[len(suffix) - 1]:
-                return self.transitions[len(suffix) - 1][suffix]
-        return self.default_probability
+```bash
+poetry run python script/sblgnt_to_uc.py < data/sblgnt.txt > data/sblgnt_processed.txt
+```
 
-    def read(self, filename):
-        with open(filename, "r") as f:
-            for line in f:
-                self.add(line.lower())
+Other supplied scripts:
 
-    def alphabet(self):
-        return set(self.counters[0].keys())
+| Script | Purpose |
+| --- | --- |
+| `script/remove_diacritics.py` | Remove Greek diacritics, normalize sigma, and retain iota subscripts as `ι`. |
+| `script/normalize.py` | Inspect Unicode normalization of polytonic Greek input. |
+| `script/tei_to_text.py SOURCE_DIR TARGET_DIR` | Convert TEI XML files with Beta Code forms into UTF-8 text files. |
+| `script/letter_count.py N` | Read standard input and emit tab-separated counts for character n-grams. |
 
+For example, to produce bigram counts from the processed corpus:
 
-# x = TransitionMatrixWithBackoff(2)
-# x.add('ACGT')
+```bash
+poetry run python script/letter_count.py 2 < data/sblgnt_processed.txt > 2grams.tsv
+```
 
+## Development
 
-# Problem statement:
-# Given:
-# 1. A transition matrix Transition, which is the P(x | S) where
-#    x is the next character and S is the n previous characters (ngram transition matrix)
-# 2. # 3. A set of characters A, which is the alphabet of the sequence
-# 3. A query string Q, which is a string of characters, in which
-#    each character is either an element the the alphabet A or a '?'
-#    (which represents an unknown character)
-# Yield:
-#    In descending order of probability, the most probable *sequences* of characters,
-#    along with their probabilities
-#    that matches the query string Q, given the transition matrix Transition
-# Note that if the letter is given, then the probability of that letter is 1
-# and the probability of the other letters is 0. If the letter is not given, then
-# the probability of that letter is given by the transition matrix.
-# For example,
-# Transition = {'A': {'A': 0.1, 'C': 0.4, 'G': 0.5, 'T': 0.0},
-#               'C': {'A': 0.5, 'C': 0.1, 'G': 0.0, 'T': 0.4},
-#               'G': {'A': 0.0, 'C': 0.0, 'G': 0.1, 'T': 0.9},
-#               'T': {'A': 0.0, 'C': 0.0, 'G': 0.0, 'T': 1.0}}
-# A = 'ACGT'
-# Q = 'A?T'
-# Then max_probable_sequences(Transition, A, Q) will yield:
-# ('AAT', 0.5)
-# ('ACT', 0.4)
-# ('AGT', 0.05)
-# ('ATT', 0.01)
-# etc
+Run the test suite with:
 
+```bash
+poetry run pytest
+```
 
-def max_probable_sequences(Transition, A, Q):
-    return sorted(
-        unsorted_max_probable_sequences(Transition, A, Q),
-        key=lambda x: x.log_probability,
-        reverse=True,
-    )
+Format and lint using the included development dependencies:
 
-
-def unsorted_max_probable_sequences(Transition, A, Q):
-    for result in max_probable_sequences_recur(
-        Transition, A, sliding_window(Q, Transition.k), []
-    ):
-        yield result
-
-
-def max_probable_sequences_recur(Transition, A, Qs, results):
-    for q in Qs:
-        if q[-1] != "?":
-            # Get the probability q[-1] given q[:-1]
-            prob = Transition[q]
-            lp = log_prob(prob)
-            # for each of the results, add the last character and the probability
-            # if the result is empty, cause we are at the start, then add a (list of) a new result
-            if results == []:
-                results = [Result(q, lp)]
-            else:
-                results = [
-                    Result(r.sequence + q[-1], r.log_probability + lp) for r in results
-                ]
-        else:
-            # If the last character is '?', then for each character in the alphabet A, then
-            # add the character and the probability to a new list of result for each of the results
-            if results == []:
-                results = [Result(a, log_prob(Transition[a])) for a in A]
-            else:
-                results = [
-                    Result(
-                        r.sequence + a,
-                        r.log_probability + log_prob(Transition[r.sequence + a]),
-                    )
-                    for r in results
-                    for a in A
-                    if Transition[r.sequence + a] > Transition.default_probability
-                ]
-    for r in results:
-        yield r
-
-
-# Test the function
-Transition = TransitionMatrixWithBackoff(6)
-Transition.read("/Users/willf/projects/aima-python/aima-data/EN-text/federalist.txt")
-
-A = Transition.alphabet()
-print(A)
-Q = "friend?"
-results = islice(max_probable_sequences(Transition, A, Q), 10)
-for r in results:
-    print(r.sequence, r.log_probability, math.exp(r.log_probability))
+```bash
+poetry run black lacuna script tests
+poetry run isort lacuna script tests
+poetry run flake8 lacuna script tests
 ```
