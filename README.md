@@ -1,5 +1,8 @@
 # Lacuna_ngram
 
+[![Tests](https://github.com/willf/lacuna_ngram/actions/workflows/tests.yml/badge.svg)](https://github.com/willf/lacuna_ngram/actions/workflows/tests.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 Lacuna_ngram is a character-level n-gram language model for restoring missing
 characters in text. Train it on a corpus, mark each one-character gap with
 `?`, and it ranks likely completions with beam search.
