@@ -1,3 +1,6 @@
+import subprocess
+import sys
+
 import pytest
 
 from lacuna.lacuna import Lacuna, split_on_mask, sliding_window
@@ -61,3 +64,28 @@ def test_lacuna_train_from_file(tmp_path):
     model.train_from_file(corpus)
 
     assert model.vocabulary() == {"a", "c", "d", "g", "o", "t"}
+
+
+def test_predict_script_reads_training_file_and_predicts_stdin(tmp_path):
+    corpus = tmp_path / "corpus.txt"
+    corpus.write_text("banana\nbandana\n", encoding="utf-8")
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "script/predict.py",
+            str(corpus),
+            "--order",
+            "3",
+            "--top-k",
+            "1",
+        ],
+        input="ba?a\nba?a\n",
+        text=True,
+        capture_output=True,
+        check=True,
+    )
+
+    predictions = [line.split("\t") for line in result.stdout.splitlines()]
+    assert [prediction[0] for prediction in predictions] == ["bana", "bana"]
+    assert all(float(prediction[1]) > 0 for prediction in predictions)

@@ -89,12 +89,26 @@ Other supplied scripts:
 | `script/normalize.py`                         | Inspect Unicode normalization of polytonic Greek input.                      |
 | `script/tei_to_text.py SOURCE_DIR TARGET_DIR` | Convert TEI XML files with Beta Code forms into UTF-8 text files.            |
 | `script/letter_count.py N`                    | Read standard input and emit tab-separated counts for character n-grams.     |
+| `script/predict.py TRAINING_FILE`             | Train from a file and emit ranked completions for text on standard input.    |
 
 For example, to produce bigram counts from the processed corpus:
 
 ```bash
 uv run python script/letter_count.py 2 < data/sblgnt_processed.txt > 2grams.tsv
 ```
+
+Predict missing characters by training on the processed corpus. Provide one
+query per input line. The output is tab-separated completed text and score, one
+result per line:
+
+```bash
+printf '%s\n' 'λογ?ς' 'θε?ς' | \
+uv run python script/predict.py data/sblgnt_processed.txt \
+  --order 3 --beam-width 10 --top-k 5
+```
+
+Use `--mask` to change the missing-character marker. `--order` defaults to 3,
+`--beam-width` to 10, and `--top-k` to 5.
 
 ## Development
 
