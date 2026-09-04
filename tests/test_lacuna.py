@@ -3,7 +3,7 @@ import sys
 
 import pytest
 
-from lacuna.lacuna import Lacuna, split_on_mask, sliding_window
+from lacuna.lacuna import Lacuna, sliding_window, split_on_mask
 from lacuna.utils import beam_search, create_prompts, fill
 
 

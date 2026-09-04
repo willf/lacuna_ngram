@@ -1,6 +1,6 @@
 from collections import namedtuple
 from functools import partial
-from itertools import chain, islice
+from itertools import chain
 
 from nltk.lm import KneserNeyInterpolated
 from nltk.lm.preprocessing import padded_everygram_pipeline
