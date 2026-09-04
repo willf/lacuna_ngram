@@ -59,9 +59,11 @@ def doc_to_sentences(doc):
     Given an XML element representing a document, return a list of strings in UTF
 
     """
-    for element in doc:
-        if element.tag == "sentence":
-            yield sentence_to_utf(element)
+    # find all of the elements in the document with tag 'sentence'
+    elements = doc.findall(".//sentence")
+    # for each element in the list of elements, yield the sentence in UTF
+    for element in elements:
+        yield sentence_to_utf(element)
 
 
 def word_element_to_utf(word):
@@ -91,10 +93,38 @@ def prettify(elem):
     return ET.tostring(elem, "utf-8").decode()
 
 
+def process_directory(source_directory, target_directory):
+    """
+    Given a source directory and a target directory, read all the files in the source directory, and write the
+    converted files to the target directory.
+    """
+    import os
+
+    # ensure target exists
+    if not os.path.exists(target_directory):
+        os.makedirs(target_directory)
+    for filename in os.listdir(source_directory):
+        if filename.endswith(".xml"):
+            sys.stderr.write("Processing file: " + filename + "\n")
+            tree = ET.parse(os.path.join(source_directory, filename))
+            root = tree.getroot()
+            sentences = list(doc_to_sentences(root))
+            # get a file name without the extension, and add the .txt extension
+            out_filename = os.path.splitext(filename)[0] + ".txt"
+            with open(os.path.join(target_directory, out_filename), "w") as f:
+                for sentence in sentences:
+                    f.write(sentence + "\n")
+
+
 if __name__ == "__main__":
     # Read the input from stdin
-    tree = ET.parse(sys.stdin)
-    root = tree.getroot()
-    for element in root.iter():
-        word_element_to_utf(element)
-    print(prettify(root))
+    # tree = ET.parse(sys.stdin)
+    # root = tree.getroot()
+    # for element in root.iter():
+    #    word_element_to_utf(element)
+    # print(prettify(root))
+    # sentences = list(doc_to_sentences(root))
+    # print(" ".join(sentences))
+    source = sys.argv[1]
+    target = sys.argv[2]
+    process_directory(source, target)
