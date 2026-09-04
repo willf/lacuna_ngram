@@ -1,6 +1,6 @@
-# Lacuna
+# Lacuna_ngram
 
-Lacuna is a character-level n-gram language model for restoring missing
+Lacuna_ngram is a character-level n-gram language model for restoring missing
 characters in text. Train it on a corpus, mark each one-character gap with
 `?`, and it ranks likely completions with beam search.
 
@@ -83,12 +83,12 @@ poetry run python script/sblgnt_to_uc.py < data/sblgnt.txt > data/sblgnt_process
 
 Other supplied scripts:
 
-| Script | Purpose |
-| --- | --- |
-| `script/remove_diacritics.py` | Remove Greek diacritics, normalize sigma, and retain iota subscripts as `ι`. |
-| `script/normalize.py` | Inspect Unicode normalization of polytonic Greek input. |
-| `script/tei_to_text.py SOURCE_DIR TARGET_DIR` | Convert TEI XML files with Beta Code forms into UTF-8 text files. |
-| `script/letter_count.py N` | Read standard input and emit tab-separated counts for character n-grams. |
+| Script                                        | Purpose                                                                      |
+| --------------------------------------------- | ---------------------------------------------------------------------------- |
+| `script/remove_diacritics.py`                 | Remove Greek diacritics, normalize sigma, and retain iota subscripts as `ι`. |
+| `script/normalize.py`                         | Inspect Unicode normalization of polytonic Greek input.                      |
+| `script/tei_to_text.py SOURCE_DIR TARGET_DIR` | Convert TEI XML files with Beta Code forms into UTF-8 text files.            |
+| `script/letter_count.py N`                    | Read standard input and emit tab-separated counts for character n-grams.     |
 
 For example, to produce bigram counts from the processed corpus:
 
